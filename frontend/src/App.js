@@ -2,58 +2,94 @@ import { useState, useRef, useEffect } from "react";
 
 const API = "http://127.0.0.1:8000";
 
-const COLORS = [
-  { from: "#ff6b6b", to: "#feca57" },
-  { from: "#48dbfb", to: "#ff9ff3" },
-  { from: "#54a0ff", to: "#5f27cd" },
-  { from: "#1dd1a1", to: "#10ac84" },
-];
-
 function TypingDots() {
   return (
-    <span style={styles.typingDots}>
-      <span style={{ ...styles.dot, animationDelay: "0s" }} />
-      <span style={{ ...styles.dot, animationDelay: "0.2s" }} />
-      <span style={{ ...styles.dot, animationDelay: "0.4s" }} />
-    </span>
+    <div style={{ display: "flex", gap: 5, alignItems: "center", padding: "4px 0" }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={{
+          width: 8, height: 8, borderRadius: "50%",
+          background: "#a78bfa",
+          display: "inline-block",
+          animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function StepTrace({ steps }) {
+  const [open, setOpen] = useState(false);
+  if (!steps || steps.length === 0) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        background: "rgba(167,139,250,0.15)", border: "1px solid rgba(167,139,250,0.3)",
+        borderRadius: 8, padding: "4px 12px", color: "#c4b5fd", fontSize: 11,
+        cursor: "pointer", letterSpacing: 1,
+      }}>
+        {open ? "▾" : "▸"} {steps.length} AGENT STEPS
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, padding: "8px 12px", fontSize: 12,
+            }}>
+              <div style={{ color: "#a78bfa", fontWeight: 700, marginBottom: 2 }}>
+                Step {i + 1} — {s.action}
+              </div>
+              {s.thought && <div style={{ color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>💭 {s.thought}</div>}
+              {s.args && <div style={{ color: "rgba(255,255,255,0.4)", fontFamily: "monospace", fontSize: 11 }}>args: {s.args}</div>}
+              {s.observation && <div style={{ color: "rgba(255,255,255,0.35)", marginTop: 4, fontSize: 11 }}>→ {s.observation.slice(0, 200)}{s.observation.length > 200 ? "..." : ""}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 function Message({ msg, index }) {
   const isUser = msg.role === "user";
   const isSystem = msg.role === "system";
-  const color = COLORS[index % COLORS.length];
-
   return (
-    <div
-      style={{
-        ...styles.messageWrapper,
-        justifyContent: isUser ? "flex-end" : "flex-start",
-        animation: `slideIn 0.3s ease ${index * 0.05}s both`,
-      }}
-    >
-      {!isUser && !isSystem && (
-        <div style={styles.avatar}>🤖</div>
-      )}
-      <div
-        style={{
-          ...styles.bubble,
-          background: isUser
-            ? `linear-gradient(135deg, ${color.from}, ${color.to})`
-            : isSystem
-            ? "rgba(255,255,255,0.1)"
-            : "rgba(255,255,255,0.12)",
-          color: "#fff",
-          borderRadius: isUser ? "20px 20px 4px 20px" : "20px 20px 20px 4px",
-          border: isSystem ? "1px solid rgba(255,255,255,0.2)" : "none",
-          maxWidth: isSystem ? "100%" : "75%",
-          textAlign: isSystem ? "center" : "left",
-        }}
-      >
-        {isSystem && <span style={styles.systemIcon}>✨</span>}
-        {msg.text}
+    <div style={{
+      display: "flex", gap: 12,
+      flexDirection: isUser ? "row-reverse" : "row",
+      alignItems: "flex-start",
+      animation: `fadeUp 0.3s ease both`,
+      animationDelay: `${index * 0.04}s`,
+    }}>
+      <div style={{
+        width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 16,
+        background: isUser ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : isSystem ? "rgba(255,255,255,0.08)" : "rgba(167,139,250,0.15)",
+        border: isUser ? "none" : "1px solid rgba(167,139,250,0.3)",
+      }}>
+        {isUser ? "👤" : isSystem ? "✨" : "🤖"}
       </div>
-      {isUser && <div style={styles.avatar}>👤</div>}
+      <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{
+          padding: "12px 16px",
+          borderRadius: isUser ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
+          background: isUser
+            ? "linear-gradient(135deg, #7c3aed, #4f46e5)"
+            : isSystem
+            ? "rgba(255,255,255,0.06)"
+            : "rgba(255,255,255,0.08)",
+          border: isUser ? "none" : "1px solid rgba(255,255,255,0.1)",
+          color: "#fff",
+          fontSize: 14,
+          lineHeight: 1.7,
+          wordBreak: "break-word",
+          whiteSpace: "pre-wrap",
+        }}>
+          {msg.text}
+        </div>
+        {msg.steps && <StepTrace steps={msg.steps} />}
+      </div>
     </div>
   );
 }
@@ -65,20 +101,13 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [colorIndex, setColorIndex] = useState(0);
+  const [mode, setMode] = useState("rag");
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setColorIndex((i) => (i + 1) % COLORS.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleUpload = async (file) => {
     if (!file || file.type !== "application/pdf") return;
@@ -89,7 +118,7 @@ export default function App() {
     try {
       const res = await fetch(`${API}/upload`, { method: "POST", body: formData });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "system", text: `📄 ${data.message}` }]);
+      setMessages((prev) => [...prev, { role: "system", text: `${data.message}` }]);
     } catch {
       setMessages((prev) => [...prev, { role: "system", text: "Upload failed. Is the backend running?" }]);
     }
@@ -97,11 +126,7 @@ export default function App() {
   };
 
   const onFileChange = (e) => handleUpload(e.target.files[0]);
-  const onDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleUpload(e.dataTransfer.files[0]);
-  };
+  const onDrop = (e) => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files[0]); };
 
   const askQuestion = async () => {
     if (!question.trim() || loading) return;
@@ -110,131 +135,158 @@ export default function App() {
     setQuestion("");
     setLoading(true);
     try {
-      const res = await fetch(`${API}/ask`, {
+      const endpoint = mode === "agent" ? `${API}/agent` : `${API}/ask`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: userMsg }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "agent", text: data.answer }]);
+      setMessages((prev) => [...prev, {
+        role: "agent",
+        text: data.answer,
+        steps: data.steps || null,
+      }]);
     } catch {
-      setMessages((prev) => [...prev, { role: "agent", text: "Error getting response. Is the backend running?" }]);
+      setMessages((prev) => [...prev, { role: "agent", text: "Error. Is the backend running?" }]);
     }
     setLoading(false);
     inputRef.current?.focus();
   };
 
-  const gradient = `linear-gradient(135deg, ${COLORS[colorIndex].from}, ${COLORS[colorIndex].to})`;
-  const nextColor = COLORS[(colorIndex + 1) % COLORS.length];
-  const animatedGradient = `linear-gradient(135deg, ${COLORS[colorIndex].from}, ${COLORS[colorIndex].to}, ${nextColor.from})`;
-
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Cal+Sans&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0a0a0f; font-family: 'Space Mono', monospace; }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(0.8); }
-        }
-        @keyframes gradientShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes borderPulse {
-          0%, 100% { border-color: rgba(255,255,255,0.2); }
-          50% { border-color: rgba(255,255,255,0.6); }
-        }
-        .upload-zone:hover { border-color: rgba(255,255,255,0.6) !important; transform: scale(1.02); }
-        .send-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .send-btn:active { transform: scale(0.97); }
+        body { background: #0d0d14; font-family: 'Inter', sans-serif; color: #fff; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } 40% { transform: scale(1.2); opacity: 1; } }
+        @keyframes shimmer { from { background-position: -200% center; } to { background-position: 200% center; } }
+        ::-webkit-scrollbar { width: 3px; } 
+        ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 4px; }
+        .mode-btn { transition: all 0.2s ease; }
+        .mode-btn:hover { background: rgba(167,139,250,0.15) !important; }
+        .send-btn:hover:not(:disabled) { transform: scale(1.05); }
+        .send-btn:active:not(:disabled) { transform: scale(0.97); }
         input:focus { outline: none; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
       `}</style>
 
-      <div style={styles.page}>
-        {/* Animated background blobs */}
-        <div style={{ ...styles.blob, background: COLORS[colorIndex].from, top: "10%", left: "5%", animationDelay: "0s" }} />
-        <div style={{ ...styles.blob, background: COLORS[(colorIndex + 1) % 4].to, top: "60%", right: "5%", animationDelay: "1.5s" }} />
-        <div style={{ ...styles.blob, background: COLORS[(colorIndex + 2) % 4].from, bottom: "10%", left: "40%", animationDelay: "3s", width: 200, height: 200 }} />
+      <div style={{ minHeight: "100vh", background: "#0d0d14", display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 20px 20px" }}>
 
-        <div style={styles.container}>
-          {/* Header */}
-          <div style={styles.header}>
-            <div style={{ animation: "float 3s ease-in-out infinite" }}>
-              <div style={{ ...styles.logo, background: gradient, transition: "background 1s ease" }}>
-                🧠
-              </div>
-            </div>
+        {/* Header */}
+        <div style={{ width: "100%", maxWidth: 700, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14,
+              background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 24, flexShrink: 0,
+              boxShadow: "0 0 24px rgba(124,58,237,0.4)",
+            }}>🧠</div>
             <div>
-              <h1 style={{ ...styles.title, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", background: animatedGradient, backgroundSize: "200% 200%", animation: "gradientShift 3s ease infinite" }}>
-                Knowledge Agent
+              <h1 style={{
+                fontSize: 26, fontWeight: 600, letterSpacing: -0.5,
+                background: "linear-gradient(90deg, #fff 0%, #a78bfa 50%, #818cf8 100%)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                animation: "shimmer 4s linear infinite",
+              }}>
+                Personal Knowledge Agent
               </h1>
-              <p style={styles.subtitle}>RAG · MCP · Local AI · Zero Cost</p>
+              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, marginTop: 2 }}>
+                RAG · MCP · REACT AGENT · LOCAL AI · ZERO COST
+              </p>
             </div>
+          </div>
+        </div>
+
+        <div style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Mode switcher */}
+          <div style={{
+            display: "flex", gap: 6, background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 4,
+          }}>
+            {[
+              { id: "rag", label: "RAG Mode", icon: "📄", desc: "Search documents" },
+              { id: "agent", label: "Agent Mode", icon: "🤖", desc: "Multi-step reasoning + web" },
+            ].map((m) => (
+              <button key={m.id} className="mode-btn" onClick={() => setMode(m.id)} style={{
+                flex: 1, padding: "10px 16px", borderRadius: 9, border: "none", cursor: "pointer",
+                background: mode === m.id ? "linear-gradient(135deg, #7c3aed, #4f46e5)" : "transparent",
+                color: mode === m.id ? "#fff" : "rgba(255,255,255,0.4)",
+                fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center",
+                justifyContent: "center", gap: 8, transition: "all 0.2s ease",
+              }}>
+                <span>{m.icon}</span>
+                <span>{m.label}</span>
+                <span style={{ fontSize: 11, opacity: 0.7 }}>— {m.desc}</span>
+              </button>
+            ))}
           </div>
 
           {/* Upload zone */}
           <div
-            className="upload-zone"
-            style={{
-              ...styles.uploadZone,
-              borderColor: dragOver ? "rgba(255,255,255,0.8)" : uploading ? COLORS[colorIndex].from : "rgba(255,255,255,0.25)",
-              background: dragOver ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
-              transition: "all 0.3s ease",
-            }}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
+            style={{
+              border: `1.5px dashed ${dragOver ? "rgba(167,139,250,0.8)" : "rgba(255,255,255,0.15)"}`,
+              borderRadius: 14, padding: "20px",
+              background: dragOver ? "rgba(167,139,250,0.06)" : "rgba(255,255,255,0.02)",
+              transition: "all 0.2s ease", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 16,
+            }}
           >
-            <label style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-              <div style={{ fontSize: 36, animation: uploading ? "spin 1s linear infinite" : "float 3s ease-in-out infinite" }}>
+            <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 16, width: "100%" }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+              }}>
                 {uploading ? "⚙️" : uploadedFile ? "📄" : "📂"}
               </div>
-              <div style={{ color: "#fff", fontWeight: "700", fontSize: 14, letterSpacing: 1 }}>
-                {uploading ? "INGESTING..." : uploadedFile ? uploadedFile : "DROP PDF OR CLICK TO UPLOAD"}
-              </div>
-              {!uploading && (
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-                  chunks → embeddings → FAISS vector store
+              <div>
+                <div style={{ color: "#fff", fontWeight: 500, fontSize: 13 }}>
+                  {uploading ? "Ingesting document..." : uploadedFile ? uploadedFile : "Drop PDF or click to upload"}
                 </div>
-              )}
+                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 2 }}>
+                  PDF → chunks → embeddings → FAISS vector store
+                </div>
+              </div>
               <input type="file" accept=".pdf" onChange={onFileChange} style={{ display: "none" }} />
             </label>
           </div>
 
           {/* Chat window */}
-          <div style={styles.chatBox}>
+          <div style={{
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 16, padding: 20, minHeight: 300, maxHeight: 420,
+            overflowY: "auto", display: "flex", flexDirection: "column", gap: 16,
+          }}>
             {messages.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, lineHeight: 1.8 }}>
-                  Upload a PDF above<br />then ask anything about it
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 }}>
+                <div style={{ fontSize: 40 }}>💬</div>
+                <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 13, textAlign: "center", lineHeight: 1.8 }}>
+                  Upload a PDF, then ask anything about it<br />
+                  Switch to Agent Mode for web search + multi-step reasoning
                 </div>
               </div>
             ) : (
               messages.map((msg, i) => <Message key={i} msg={msg} index={i} />)
             )}
             {loading && (
-              <div style={{ ...styles.messageWrapper, justifyContent: "flex-start" }}>
-                <div style={styles.avatar}>🤖</div>
-                <div style={{ ...styles.bubble, background: "rgba(255,255,255,0.1)" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                  background: "rgba(167,139,250,0.15)", border: "1px solid rgba(167,139,250,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
+                }}>🤖</div>
+                <div style={{
+                  padding: "12px 16px", borderRadius: "4px 18px 18px 18px",
+                  background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)",
+                }}>
                   <TypingDots />
                 </div>
               </div>
@@ -243,205 +295,46 @@ export default function App() {
           </div>
 
           {/* Input */}
-          <div style={styles.inputRow}>
+          <div style={{ display: "flex", gap: 10 }}>
             <input
               ref={inputRef}
-              style={styles.input}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && askQuestion()}
-              placeholder="Ask anything about your documents..."
+              placeholder={mode === "agent" ? "Ask anything — agent will search docs + web..." : "Ask a question about your documents..."}
+              style={{
+                flex: 1, background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12,
+                padding: "14px 18px", color: "#fff", fontSize: 14,
+                fontFamily: "'Inter', sans-serif",
+              }}
             />
             <button
               className="send-btn"
-              style={{
-                ...styles.sendBtn,
-                background: gradient,
-                transition: "background 1s ease, transform 0.15s ease",
-                opacity: loading || !question.trim() ? 0.5 : 1,
-              }}
               onClick={askQuestion}
               disabled={loading || !question.trim()}
+              style={{
+                width: 52, height: 52, borderRadius: 12, border: "none", cursor: "pointer",
+                background: loading || !question.trim() ? "rgba(124,58,237,0.3)" : "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                color: "#fff", fontSize: 20, flexShrink: 0,
+                transition: "all 0.2s ease",
+                boxShadow: loading || !question.trim() ? "none" : "0 0 16px rgba(124,58,237,0.4)",
+              }}
             >
-              {loading ? "⏳" : "→"}
+              →
             </button>
           </div>
 
-          {/* Status bar */}
-          <div style={styles.statusBar}>
-            <span style={styles.statusDot} />
-            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
-              llama3.2:3b · FAISS · MCP tools · running locally
+          {/* Status */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", display: "inline-block" }} />
+            <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, letterSpacing: 1 }}>
+              {mode === "agent" ? "REACT AGENT · MCP TOOLS · WEB SEARCH · LOCAL LLM" : "RAG · FAISS · LLAMA 3.2 · RUNNING LOCALLY"}
             </span>
           </div>
+
         </div>
       </div>
     </>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#0a0a0f",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-    position: "relative",
-    overflow: "hidden",
-  },
-  blob: {
-    position: "fixed",
-    width: 300,
-    height: 300,
-    borderRadius: "50%",
-    filter: "blur(80px)",
-    opacity: 0.12,
-    animation: "float 6s ease-in-out infinite",
-    pointerEvents: "none",
-    transition: "background 1s ease",
-  },
-  container: {
-    width: "100%",
-    maxWidth: 680,
-    position: "relative",
-    zIndex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    marginBottom: 8,
-  },
-  logo: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 28,
-    flexShrink: 0,
-  },
-  title: {
-    fontFamily: "'Syne', sans-serif",
-    fontSize: 28,
-    fontWeight: 800,
-    letterSpacing: -1,
-  },
-  subtitle: {
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 11,
-    letterSpacing: 2,
-    marginTop: 2,
-    fontFamily: "'Space Mono', monospace",
-  },
-  uploadZone: {
-    border: "2px dashed",
-    borderRadius: 16,
-    padding: "24px 20px",
-    textAlign: "center",
-    cursor: "pointer",
-    animation: "borderPulse 3s ease-in-out infinite",
-  },
-  chatBox: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 20,
-    padding: 20,
-    minHeight: 320,
-    maxHeight: 420,
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  emptyState: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 60,
-    textAlign: "center",
-  },
-  messageWrapper: {
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 10,
-  },
-  avatar: {
-    fontSize: 22,
-    flexShrink: 0,
-    lineHeight: 1,
-  },
-  bubble: {
-    padding: "12px 16px",
-    fontSize: 13,
-    lineHeight: 1.7,
-    maxWidth: "75%",
-    wordBreak: "break-word",
-    whiteSpace: "pre-wrap",
-  },
-  systemIcon: {
-    marginRight: 6,
-  },
-  inputRow: {
-    display: "flex",
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    borderRadius: 14,
-    padding: "14px 18px",
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: "'Space Mono', monospace",
-    caretColor: "#fff",
-  },
-  sendBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    border: "none",
-    color: "#fff",
-    fontSize: 20,
-    cursor: "pointer",
-    fontWeight: "bold",
-    flexShrink: 0,
-  },
-  statusBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    justifyContent: "center",
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "#1dd1a1",
-    animation: "pulse 2s ease-in-out infinite",
-    display: "inline-block",
-  },
-  typingDots: {
-    display: "flex",
-    gap: 4,
-    alignItems: "center",
-    height: 20,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.6)",
-    display: "inline-block",
-    animation: "pulse 1s ease-in-out infinite",
-  },
-};
