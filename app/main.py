@@ -34,3 +34,13 @@ async def ask_question(payload: dict):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+from app.agent import run_agent
+
+@app.post("/agent")
+async def agent_query(payload: dict):
+    question = payload.get("question")
+    if not question:
+        return {"error": "No question provided"}
+    result = run_agent(question)
+    return result
