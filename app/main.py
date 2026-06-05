@@ -51,6 +51,7 @@ import json
 @app.post("/ask-stream")
 async def ask_stream(payload: dict):
     question = payload.get("question")
+    history = payload.get("history", [])  # list of {role, content} dicts
     if not question:
         return {"error": "No question provided"}
 
@@ -70,26 +71,33 @@ async def ask_stream(payload: dict):
         except Exception:
             context = "No documents uploaded yet."
 
-        prompt = f"""Use the following context to answer the question.
+        # Step 2: Build messages with history
+        system_prompt = f"""You are a helpful assistant that answers questions based on uploaded documents.
+Use the following document context to answer questions.
 If the answer is not in the context, say "I don't know based on the documents provided."
 
-Context:
-{context}
+Document context:
+{context}"""
 
-Question: {question}
-"""
+        messages = [{"role": "system", "content": system_prompt}]
 
-        # Step 2: Stream response from Ollama token by token
+        # Add conversation history (last 6 messages to stay within context window)
+        for msg in history[-6:]:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # Add current question
+        messages.append({"role": "user", "content": question})
+
+        # Step 3: Stream response
         import ollama
         stream = ollama.chat(
             model="llama3.2:3b",
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             stream=True
         )
 
         for chunk in stream:
             token = chunk["message"]["content"]
-            # Send each token as a JSON line
             yield f"data: {json.dumps({'token': token})}\n\n"
 
         yield "data: [DONE]\n\n"

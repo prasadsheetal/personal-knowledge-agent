@@ -146,7 +146,15 @@ export default function App() {
         const res = await fetch(`${API}/ask-stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: userMsg }),
+          body: JSON.stringify({
+            question: userMsg,
+            history: messages
+              .filter((m) => m.role === "user" || m.role === "agent")
+              .map((m) => ({
+                role: m.role === "agent" ? "assistant" : "user",
+                content: m.text,
+              })),
+          }),
         });
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
