@@ -207,9 +207,9 @@ export default function App() {
         input:focus { outline: none; }
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: "#0d0d14", display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 20px 20px" }}>
+      <div style={{ minHeight: "100vh", background: "#0d0d14", display: "flex", flexDirection: "column", padding: "32px 60px 20px" }}>
 
-        <div style={{ width: "100%", maxWidth: 700, marginBottom: 24 }}>
+        <div style={{ width: "100%", marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
             <div style={{
               width: 48, height: 48, borderRadius: 14,
@@ -234,7 +234,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
 
           <div style={{
             display: "flex", gap: 6, background: "rgba(255,255,255,0.05)",
@@ -291,13 +291,13 @@ export default function App() {
 
           <div style={{
             background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 16, padding: 20, minHeight: 300, maxHeight: 420,
+            borderRadius: 16, padding: 20, flex: 1, minHeight: 400,
             overflowY: "auto", display: "flex", flexDirection: "column", gap: 16,
           }}>
             {messages.length === 0 ? (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 }}>
-                <div style={{ fontSize: 40 }}>💬</div>
-                <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 13, textAlign: "center", lineHeight: 1.8 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 }}>
+                <div style={{ fontSize: 48 }}>💬</div>
+                <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 14, textAlign: "center", lineHeight: 1.8 }}>
                   Upload a PDF, then ask anything about it<br />
                   Switch to Agent Mode for web search + multi-step reasoning
                 </div>
@@ -348,7 +348,7 @@ export default function App() {
             </button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, paddingBottom: 8 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", display: "inline-block" }} />
             <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, letterSpacing: 1 }}>
               {mode === "agent" ? "REACT AGENT · MCP TOOLS · WEB SEARCH · LOCAL LLM" : "RAG · FAISS · LLAMA 3.2 · RUNNING LOCALLY"}
