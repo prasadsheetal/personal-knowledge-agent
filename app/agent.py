@@ -7,9 +7,8 @@ import os
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 FAISS_PATH = "app/data/faiss_index"
-MAX_STEPS = 3  # prevent infinite loops
+MAX_STEPS = 2  # prevent infinite loops
 
-# Tool definitions — the agent sees these descriptions and decides which to call
 TOOLS = {
     "search_documents": {
         "description": "Search uploaded documents for relevant information. Use this for questions about uploaded PDFs.",
@@ -65,13 +64,6 @@ def web_search(query: str) -> str:
         return f"Search error: {str(e)}"
 
 def run_agent(question: str) -> dict:
-    """
-    ReAct agent loop:
-    1. Think about what tool to use
-    2. Call the tool
-    3. Observe the result
-    4. Repeat until final answer (max 3 steps)
-    """
     steps = []
     observations = []
 
@@ -81,12 +73,11 @@ def run_agent(question: str) -> dict:
     ])
 
     for step in range(MAX_STEPS):
-        # Build the reasoning prompt
         history = ""
         for s in steps:
             history += f"\nThought: {s['thought']}\nAction: {s['action']}({s['args']})\nObservation: {s['observation']}\n"
 
-        prompt = f"""You are an AI agent. Answer the user's question by choosing the right tool.
+        prompt = f"""You are an efficient AI agent. Answer the question in as few steps as possible.
 
 Available tools:
 {tools_description}
@@ -94,12 +85,16 @@ Available tools:
 Question: {question}
 {history}
 
-What should you do next? Respond in EXACTLY this format:
-Thought: [your reasoning]
-Action: [tool name]
-Args: [argument value]
+Rules:
+- If the question is about uploaded documents, use search_documents FIRST
+- If you have enough information after one tool call, use final_answer immediately
+- Only use web_search if the document search returns nothing useful
+- Never repeat the same tool call twice
 
-If you have enough information, use Action: final_answer and Args: [your complete answer]"""
+Respond in EXACTLY this format:
+Thought: [one sentence reasoning]
+Action: [tool name]
+Args: [argument value]"""
 
         response = ollama.chat(
             model="llama3.2:3b",
@@ -107,7 +102,6 @@ If you have enough information, use Action: final_answer and Args: [your complet
         )
         raw = response["message"]["content"]
 
-        # Parse the response
         thought, action, args = "", "", ""
         for line in raw.split("\n"):
             if line.startswith("Thought:"):
@@ -117,11 +111,9 @@ If you have enough information, use Action: final_answer and Args: [your complet
             elif line.startswith("Args:"):
                 args = line.replace("Args:", "").strip()
 
-        # Execute the tool
         if action == "final_answer" or not action:
             steps.append({"thought": thought, "action": "final_answer", "args": args, "observation": ""})
             return {"answer": args or raw, "steps": steps}
-
         elif action == "search_documents":
             observation = search_documents(args)
         elif action == "read_file":
@@ -135,11 +127,10 @@ If you have enough information, use Action: final_answer and Args: [your complet
             "thought": thought,
             "action": action,
             "args": args,
-            "observation": observation[:500]  # truncate for display
+            "observation": observation[:500]
         })
         observations.append(observation)
 
-    # If we hit max steps, summarize what we found
     final_prompt = f"""Based on this research, answer the question: {question}
 
 Research findings:
